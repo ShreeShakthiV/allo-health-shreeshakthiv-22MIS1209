@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Allo Health – Inventory Reservation System
 
-## Getting Started
+A Next.js application that handles inventory reservations for multi-warehouse retail, preventing overselling through distributed locking.
 
-First, run the development server:
+## Live URL
+https://allo-health-shreeshakthiv-22-mis-12.vercel.app
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## How to Run Locally
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+1. Clone the repository:
+   git clone https://github.com/ShreeShakthiV/allo-health-shreeshakthiv-22MIS1209.git
+   cd allo-health-shreeshakthiv-22MIS1209
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+2. Install dependencies:
+   npm install
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. Set up environment variables — create a .env file:
+   DATABASE_URL="your-neon-postgres-url"
+   UPSTASH_REDIS_REST_URL="your-upstash-url"
+   UPSTASH_REDIS_REST_TOKEN="your-upstash-token"
 
-## Learn More
+4. Run database migrations:
+   npx prisma db push
 
-To learn more about Next.js, take a look at the following resources:
+5. Seed the database:
+   npm run seed
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+6. Start the dev server:
+   npm run dev
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+7. Open http://localhost:3000
 
-## Deploy on Vercel
+## How Expiry Works in Production
+Reservations expire after 10 minutes. Expiry is handled lazily — when a user tries to confirm a reservation, the API checks if expiresAt has passed and returns a 410 Gone response if it has. The stock is released at that point. This avoids the need for a background job while keeping the system correct.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Concurrency Approach
+When two users try to reserve the same product/warehouse simultaneously, a Redis distributed lock (via Upstash) ensures only one request proceeds at a time. The lock is scoped to the product+warehouse combination and expires in 10 seconds. Database transactions are used alongside the lock to guarantee atomic stock updates.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Tech Stack
+- Next.js 16 (App Router)
+- TypeScript
+- Prisma + Neon (Postgres)
+- Upstash Redis
+- Tailwind CSS
+
+## Trade-offs & What I'd Do Differently
+- **Expiry**: Used lazy cleanup instead of a cron job. A Vercel Cron job would be cleaner in production to release stock proactively.
+- **No auth**: Users are not authenticated. In production each reservation would be tied to a user account.
+- **Quantity**: Currently hardcoded to 1 unit per reservation. Would add quantity selection with more time.
+- **Error handling**: Basic error handling is in place. Would add more detailed logging and monitoring in production.
